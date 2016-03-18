@@ -24,27 +24,28 @@ HMAC(char *key, char *msg){
     printf("key: %s -l1: %d -l2: %d\n", key, key_len, strlen(key));
     assert(key_len <= 64);
 
-    // set up the pads
+    // STEP #1: Set up ipad[] and opad[] to be '5c5c5c...' and '363636...'
     uint8_t ipad [65];// = 0x36;
     uint8_t opad [65];// = 0x5c;
     ipad[64] = '\0';
     opad[64] = '\0';
-    memset(&opad[0], '\x36', 64);
-    memset(&ipad[0], '\x5c', 64);
-    printf("ipad: %s - length:%d\n", ipad, strlen((char*)ipad));
-    printf("opad: %s - length:%d\n", opad, strlen((char*)opad));
-    int i = 0;
+    memset(&ipad[0], '\x36', 64);
+    memset(&opad[0], '\x5c', 64);
+    printf("BEFORE XOR: ipad: %s - length:%d\n", ipad, strlen((char*)ipad));
+    printf("BEFORE XOR: opad: %s - length:%d\n", opad, strlen((char*)opad));
 
-    // xor
+    int i = 0;
     for(; i < key_len; i++){
-        printf("key%d: %x\n", i, atoi(&key[i]));
+        /* printf("key%d: %x\n", i, atoi(&key[i])); */
         /* ipad[i] ^= (uint8_t) atoi(&key[i]); */
         /* opad[i] ^= (uint8_t) atoi(&key[i]); */
         ipad[i] ^= (uint8_t) (key[i]);
         opad[i] ^= (uint8_t) (key[i]);
-        printf("ipad%d: %x\n", i, ipad[i]);
-        printf("opad%d: %x\n", i, opad[i]);
+        /* printf("ipad%d: %x\n", i, ipad[i]); */
+        /* printf("opad%d: %x\n", i, opad[i]); */
     }
+    printf("AFTER XOR: ipad: %s - length:%d\n", ipad, strlen((char*)ipad));
+    printf("AFTER XOR: opad: %s - length:%d\n", opad, strlen((char*)opad));
 
     // prepare for SHA1
     int key_msg_len = strlen(msg) + 64;
