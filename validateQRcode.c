@@ -15,8 +15,8 @@ validateHOTP(char * secret_hex, char * HOTP_string)
 {
     uint8_t hmac[SHA1_DIGEST_LENGTH];
     // 1) COMPUTE HMAC CODE VALUE
-    HMAC(secret_hex, "1", hmac);
-    /* uint8_t *hmac = hmac_fcn("1", 1, secret_hex, 20, hmac); */
+    /* HMAC(secret_hex, "1", hmac); */
+    hmac_fcn("1", 1, secret_hex, 20, hmac);
     printf("Key is %s, msg is %s, SHA1=%s\n", secret_hex, "1", hmac);
 
     printf("\nFINAL HMAC:\n");
