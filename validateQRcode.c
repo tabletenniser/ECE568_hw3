@@ -8,7 +8,7 @@
 
 // function prototype
 void HMAC(char *, char *, uint8_t *);
-uint8_t *hmac_fcn(unsigned char*, int, unsigned char *, int);
+void hmac_fcn(unsigned char*, int, unsigned char *, int, uint8_t *);
 
 static int
 validateHOTP(char * secret_hex, char * HOTP_string)
@@ -16,7 +16,7 @@ validateHOTP(char * secret_hex, char * HOTP_string)
     uint8_t hmac[SHA1_DIGEST_LENGTH];
     // 1) COMPUTE HMAC CODE VALUE
     HMAC(secret_hex, "1", hmac);
-    /* uint8_t *hmac = hmac_fcn("1", 1, secret_hex, 20); */
+    /* uint8_t *hmac = hmac_fcn("1", 1, secret_hex, 20, hmac); */
     printf("Key is %s, msg is %s, SHA1=%s\n", secret_hex, "1", hmac);
 
     printf("\nFINAL HMAC:\n");
@@ -39,11 +39,12 @@ validateHOTP(char * secret_hex, char * HOTP_string)
 }
 
 
-uint8_t *hmac_fcn(text, text_len, key, key_len)
+void hmac_fcn(text, text_len, key, key_len, final_sha)
     unsigned char* text; /* pointer to data stream */
     int text_len; /* length of data stream */
     unsigned char* key; /* pointer to authentication key */
     int key_len; /* length of authentication key */
+    uint8_t* final_sha; /* length of authentication key */
 {
     printf("text is %s, text_len is %d, key is %s, key_len is %d\n", text, text_len, key, key_len);
     SHA1_INFO context;
@@ -111,16 +112,16 @@ uint8_t *hmac_fcn(text, text_len, key, key_len)
     sha1_init(&context); /* init context for 2nd * pass */
     sha1_update(&context, k_opad, KEY_LENGTH); /* start with outer pad */
     sha1_update(&context, digest, SHA1_DIGEST_LENGTH); /* then results of 1st * hash */
-    sha1_final(&context, digest); /* finish up 2nd pass */
+    sha1_final(&context, final_sha); /* finish up 2nd pass */
 
     printf("\nFINAL SHA:\n");
     i = 0;
     for(; i < SHA1_DIGEST_LENGTH; i++){
-        printf("%02x", digest[i]);
+        printf("%02x", final_sha[i]);
     }
     printf("\n");
 
-    return digest;
+    return;
 }
 
 
