@@ -4,6 +4,7 @@
 #include <assert.h>
 
 #include "lib/sha1.h"
+#define KEY_LENGTH 64
 
 // function prototype
 uint8_t *HMAC(char *, char *);
@@ -12,7 +13,7 @@ static int
 validateHOTP(char * secret_hex, char * HOTP_string)
 {
     SHA1_INFO ctx;
-    uint8_t *hmac = HMAC(secret_hex, "1");
+    uint8_t *hmac = HMAC(secret_hex, "\x01");
     printf("Key is %s, msg is %s, SHA1=%s\n", secret_hex, "1", hmac);
 	return (0);
 }
@@ -25,38 +26,65 @@ HMAC(char *key, char *msg){
     assert(key_len <= 64);
 
     // STEP #1: Set up ipad[] and opad[] to be '5c5c5c...' and '363636...'
-    uint8_t ipad [65];// = 0x36;
-    uint8_t opad [65];// = 0x5c;
-    ipad[64] = '\0';
-    opad[64] = '\0';
-    memset(&ipad[0], '\x36', 64);
-    memset(&opad[0], '\x5c', 64);
-    printf("BEFORE XOR: ipad: %s - length:%d\n", ipad, strlen((char*)ipad));
-    printf("BEFORE XOR: opad: %s - length:%d\n", opad, strlen((char*)opad));
+    uint8_t ipad [KEY_LENGTH+1];// = 0x36;
+    uint8_t opad [KEY_LENGTH+1];// = 0x5c;
+    ipad[KEY_LENGTH] = '\0';
+    opad[KEY_LENGTH] = '\0';
+    memset(&ipad[0], '\x36', KEY_LENGTH);
+    memset(&opad[0], '\x5c', KEY_LENGTH);
 
+    printf("\nBEFORE XOR - ipad: ");
     int i = 0;
+    for(; i < KEY_LENGTH; i++){
+        printf("%02x", ipad[i]);
+    }
+    printf("\nBEFORE XOR - opad: ");
+    i = 0;
+    for(; i < KEY_LENGTH; i++){
+        printf("%02x", opad[i]);
+    }
+    printf("\n");
+
+    i = 0;
     for(; i < key_len; i++){
-        /* printf("key%d: %x\n", i, atoi(&key[i])); */
-        /* ipad[i] ^= (uint8_t) atoi(&key[i]); */
-        /* opad[i] ^= (uint8_t) atoi(&key[i]); */
         ipad[i] ^= (uint8_t) (key[i]);
         opad[i] ^= (uint8_t) (key[i]);
-        /* printf("ipad%d: %x\n", i, ipad[i]); */
-        /* printf("opad%d: %x\n", i, opad[i]); */
     }
-    printf("AFTER XOR: ipad: %s - length:%d\n", ipad, strlen((char*)ipad));
-    printf("AFTER XOR: opad: %s - length:%d\n", opad, strlen((char*)opad));
+
+    printf("\nBEFORE XOR - ipad: ");
+    i = 0;
+    for(; i < KEY_LENGTH; i++){
+        printf("%02x", ipad[i]);
+    }
+    printf("\nBEFORE XOR - opad: ");
+    i = 0;
+    for(; i < KEY_LENGTH; i++){
+        printf("%02x", opad[i]);
+    }
+    printf("\n");
 
     // prepare for SHA1
-    int key_msg_len = strlen(msg) + 64;
+    int key_msg_len = strlen(msg) + KEY_LENGTH;
     uint8_t *tmp = (uint8_t *) malloc(key_msg_len + 1);
     tmp[key_msg_len] = '\0';
 
     // construct SHA1 argument
-    strcpy(tmp, ipad);
-    printf("BEFORE STRCAT() - tmp: %s : length: %d\n", tmp, strlen((char*)tmp));
-    strcat(tmp, msg);
-    printf("AFTER STRCAT() - tmp: %s : length: %d\n", tmp, strlen((char*)tmp));
+    memcpy(tmp, ipad, KEY_LENGTH);
+    printf("\nBEFORE STRCAT() - tmp: ");
+    i = 0;
+    for(; i < key_msg_len; i++){
+        printf("%02x", tmp[i]);
+    }
+    printf("\n");
+
+    memcpy(&tmp[KEY_LENGTH], msg, strlen(msg)+1);
+
+    printf("\nAFTER STRCAT() - tmp: ");
+    i = 0;
+    for(; i < key_msg_len; i++){
+        printf("%02x", tmp[i]);
+    }
+    printf("\n");
 
     // 1st sha
     SHA1_INFO ctx;
@@ -67,43 +95,30 @@ HMAC(char *key, char *msg){
 
     // 2nd sha
     free(tmp);
-    tmp = (uint8_t *) calloc(strlen(opad) + strlen(sha) + 1, sizeof(uint8_t));
-    strcpy(tmp, opad);
+    tmp = (uint8_t *) calloc(KEY_LENGTH + SHA1_DIGEST_LENGTH + 1, sizeof(uint8_t));
+    memcpy(tmp, opad, KEY_LENGTH);
 
     printf("\npre-sha2: ");
     i = 0;
-    for(; i < strlen(tmp); i++){
+    for(; i < key_msg_len; i++){
         printf("%02x", tmp[i]);
     }
     printf("\n");
-    printf("\n???sha1: ");
-    i = 0;
-    int tmp_len = strlen(tmp);
-    puts("");
-    for(; i < strlen(sha); i++){
-        printf("%02x", sha[i]);
-        /* tmp[tmp_len + i] = (uint8_t) sha[i]; */
-    }
-    tmp[tmp_len + i] = sha[i];
-    printf("\n");
 
-    strcat(tmp, (char*) &sha[0]);
+    memcpy(&tmp[KEY_LENGTH], sha, SHA1_DIGEST_LENGTH+1);
 
-    printf("\n???pre-sha2: %d\n", strlen(tmp));
+    printf("\n???pre-sha2: %d\n", KEY_LENGTH+SHA1_DIGEST_LENGTH+1);
     i = 0;
-    for(; i < strlen(tmp); i++){
-        printf("%02x", (uint8_t) tmp[i]);
+    for(; i < KEY_LENGTH+SHA1_DIGEST_LENGTH+1; i++){
+        printf("%02x", tmp[i]);
     }
     printf("\n");
-    printf("\n???pre-sha2: %s\n", (tmp));
 
     SHA1_INFO ctx_again;
     uint8_t sha_again[SHA1_DIGEST_LENGTH];
     sha1_init(&ctx_again);
     sha1_update(&ctx_again, tmp, strlen(tmp));
     sha1_final(&ctx_again, sha_again);
-
-    printf("sha2: %s - length: %d\n", sha_again, strlen((char*)&sha_again[0]));
 
     printf("\nFINAL SHA:\n");
     i = 0;
