@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <time.h>
 
 #include "lib/sha1.h"
 #define KEY_LENGTH 64
@@ -33,9 +34,14 @@ validateHOTP(char * secret_hex, char * HOTP_string)
         | (hmac[offset+1] & 0xff) << 16
         | (hmac[offset+2] & 0xff) << 8
         | (hmac[offset+3] & 0xff);
-    printf("bin_code is: %d\n", (bin_code % 1000000));
+    bin_code = bin_code % 1000000;
+    printf("bin_code is: %d\n", bin_code);
 
-	return (0);
+    if (atoi(HOTP_string) == bin_code){
+        return 1;
+    } else {
+        return 0;
+    }
 }
 
 
@@ -246,7 +252,42 @@ void HMAC(char *key, char *msg, uint8_t* sha_final){
 static int
 validateTOTP(char * secret_hex, char * TOTP_string)
 {
-	return (0);
+    uint8_t hmac[SHA1_DIGEST_LENGTH];
+    // 1) COMPUTE TIME (msg) FOR HMAC
+    time_t cur_time = time(NULL);
+    long T = (cur_time- 0) / 30;
+    printf("T is: %d\n", T);
+    char T_str[64];
+    sprintf (T_str, "%lX", T);
+    printf("T_str is: %s\n", T_str);
+
+    // 2) HMAC COMPUTATION WITH secret_hex and time_val
+    /* HMAC(secret_hex, "1", hmac); */
+    hmac_fcn(T_str, strlen(T_str), secret_hex, 20, hmac);
+    printf("Key is %s, msg is %s, SHA1=%s\n", secret_hex, "1", hmac);
+
+    printf("\nFINAL HMAC:\n");
+    int i = 0;
+    for(; i < SHA1_DIGEST_LENGTH; i++){
+        printf("%02x", hmac[i]);
+    }
+    printf("\n");
+
+    // 2) TRUNCATE AND COMPUTE HOTP VALUE
+    int offset = hmac[19] & 0xf;
+    printf("Offset is: %d\n", offset);
+    int bin_code = (hmac[offset] & 0x7f) << 24
+        | (hmac[offset+1] & 0xff) << 16
+        | (hmac[offset+2] & 0xff) << 8
+        | (hmac[offset+3] & 0xff);
+    bin_code = bin_code % 1000000;
+    printf("bin_code is: %d\n", bin_code);
+
+    if (atoi(TOTP_string) == bin_code){
+        return 1;
+    } else {
+        return 0;
+    }
 }
 
 int
