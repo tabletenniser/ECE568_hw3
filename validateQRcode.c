@@ -8,16 +8,7 @@
 #define KEY_LENGTH 64
 
 // function prototype
-void HMAC(char *, char *, uint8_t *);
 void hmac_fcn(unsigned char*, int, unsigned char *, int, uint8_t *);
-
-void longToBytes(long num, unsigned char arr[4])
-{
-    arr[0]= (int)((num >> 24) & 0xFF);
-    arr[1]= (int)((num >> 16) & 0xFF);
-    arr[2]= (int)((num >> 8) & 0xFF);
-    arr[3]= (int)( num & 0xFF);
-}
 
 void longToBytes2(long long_num, unsigned char arr[8]){
     int i;
@@ -35,8 +26,6 @@ uint8_t hexFromChar(char c)
 	return 255;
 }
 
-
-
 static int
 validateHOTP(char * secret_hex, char * HOTP_string)
 {
@@ -46,7 +35,6 @@ validateHOTP(char * secret_hex, char * HOTP_string)
     char counterChar[8];
     longToBytes2(counter, counterChar);
     hmac_fcn(counterChar, 8, secret_hex, 20, hmac);
-    /* HMAC(secret_hex, counterChar, hmac); */
 
     // 2) TRUNCATE AND COMPUTE HOTP VALUE
     uint8_t offset = hmac[SHA1_DIGEST_LENGTH-1] & 0xf;
@@ -55,6 +43,16 @@ validateHOTP(char * secret_hex, char * HOTP_string)
         | (hmac[offset+2] & 0xff) << 8
         | (hmac[offset+3] & 0xff);
     bin_code = bin_code % 1000000;
+
+
+    /************* FOR DEBUG ONLY *************/
+    /* printf("\nFINAL HMAC:\n"); */
+    /* int i = 0; */
+    /* for(; i < SHA1_DIGEST_LENGTH; i++){ */
+    /*     printf("%02x", hmac[i]); */
+    /* } */
+    /* printf("\n"); */
+    /* printf("bin_code is: %d\n", bin_code); */
 
     if (atoi(HOTP_string) == bin_code){
         return 1;
@@ -119,57 +117,6 @@ void hmac_fcn(text, text_len, key, key_len, final_sha)
     return;
 }
 
-
-void HMAC(char *key, char *msg, uint8_t* sha_final){
-    int key_len = strlen(key);
-    assert(key_len <= 64);
-
-    // STEP #1: Set up ipad[] and opad[] to be '5c5c5c...' and '363636...'
-    uint8_t ipad [KEY_LENGTH+1];// = 0x36;
-    uint8_t opad [KEY_LENGTH+1];// = 0x5c;
-    ipad[KEY_LENGTH] = '\0';
-    opad[KEY_LENGTH] = '\0';
-    memset(&ipad[0], '\x36', KEY_LENGTH);
-    memset(&opad[0], '\x5c', KEY_LENGTH);
-
-    int i = 0;
-    for(; i < key_len; i++){
-        ipad[i] ^= (uint8_t) (key[i]);
-        opad[i] ^= (uint8_t) (key[i]);
-    }
-
-    // prepare for SHA1
-    int key_msg_len = strlen(msg) + KEY_LENGTH;
-    uint8_t *tmp = (uint8_t *) malloc(key_msg_len + 1);
-    tmp[key_msg_len] = '\0';
-
-    // construct SHA1 argument
-    memcpy(tmp, ipad, KEY_LENGTH);
-    memcpy(&tmp[KEY_LENGTH], msg, strlen(msg)+1);
-
-    // 1st sha
-    SHA1_INFO ctx;
-    uint8_t sha[SHA1_DIGEST_LENGTH];
-    sha1_init(&ctx);
-    sha1_update(&ctx, tmp, key_msg_len);
-    sha1_final(&ctx, sha);
-
-    // 2nd sha
-    free(tmp);
-    tmp = (uint8_t *) calloc(KEY_LENGTH + SHA1_DIGEST_LENGTH + 1, sizeof(uint8_t));
-    memcpy(tmp, opad, KEY_LENGTH);
-
-    memcpy(&tmp[KEY_LENGTH], sha, SHA1_DIGEST_LENGTH+1);
-
-    SHA1_INFO ctx_again;
-    sha1_init(&ctx_again);
-    sha1_update(&ctx_again, tmp, KEY_LENGTH+SHA1_DIGEST_LENGTH);
-    sha1_final(&ctx_again, sha_final);
-
-    free(tmp);
-    return;
-}
-
 static int
 validateTOTP(char * secret_hex, char * TOTP_string)
 {
@@ -182,7 +129,6 @@ validateTOTP(char * secret_hex, char * TOTP_string)
     longToBytes2(T, TChar);
 
     // 2) HMAC COMPUTATION WITH secret_hex and time_val
-    /* HMAC(secret_hex, "1", hmac); */
     hmac_fcn(TChar, 8, secret_hex, 20, hmac);
 
     // 2) TRUNCATE AND COMPUTE HOTP VALUE
@@ -192,6 +138,17 @@ validateTOTP(char * secret_hex, char * TOTP_string)
         | (hmac[offset+2] & 0xff) << 8
         | (hmac[offset+3] & 0xff);
     bin_code = bin_code % 1000000;
+
+
+    /************* FOR DEBUG ONLY *************/
+    /* printf("\nFINAL HMAC:\n"); */
+    /* int i = 0; */
+    /* for(; i < SHA1_DIGEST_LENGTH; i++){ */
+    /*     printf("%02x", hmac[i]); */
+    /* } */
+    /* printf("\n"); */
+    /* printf("bin_code is: %d\n", bin_code); */
+
 
     if (atoi(TOTP_string) == bin_code){
         return 1;
@@ -208,13 +165,26 @@ main(int argc, char * argv[])
 		return(-1);
 	}
 
-	char *	secret_hex = argv[1];
+	char *	pre_secret_hex = argv[1];
 	char *	HOTP_value = argv[2];
 	char *	TOTP_value = argv[3];
 
-	assert (strlen(secret_hex) <= 20);
+	assert (strlen(pre_secret_hex) <= 20);
 	assert (strlen(HOTP_value) == 6);
 	assert (strlen(TOTP_value) == 6);
+
+    // Append zeros to the beginning if less than 20 digits
+    char secret_hex[21];
+    int idx = strlen(pre_secret_hex) - 1;
+    int cp_idx = 19;
+    secret_hex[20] = '\0';
+    for(; idx >=0; idx--, cp_idx--){
+        secret_hex[cp_idx] = pre_secret_hex[idx];
+    }
+    while(cp_idx >= 0){
+        secret_hex[cp_idx] = '0';
+        cp_idx--;
+    }
 
 	printf("\nSecret (Hex): %s\nHTOP Value: %s (%s)\nTOTP Value: %s (%s)\n\n",
 		secret_hex,

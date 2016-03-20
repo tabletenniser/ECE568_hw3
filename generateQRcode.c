@@ -5,8 +5,15 @@
 
 #include "lib/encoding.h"
 
-int
-main(int argc, char * argv[])
+uint8_t hexFromChar(char c)
+{
+	if(c >= '0' && c <= '9') return c - '0';
+	if(c >= 'a' && c <= 'f') return c - 'a' + 10;
+	if(c >= 'A' && c <= 'F') return c - 'A' + 10;
+	return 255;
+}
+
+int main(int argc, char * argv[])
 {
 	if ( argc != 4 ) {
 		printf("Usage: %s [issuer] [accountName] [secretHex]\n", argv[0]);
@@ -43,7 +50,7 @@ main(int argc, char * argv[])
     // Convert secret to uint8_t*
     int i;
     for (i = 0; i < strlen(secret_hex); i += 2){
-        secret[i/2] = (uint8_t) ((secret_hex[i] - '0') * 16 + (secret_hex[i+1] - '0'));
+        secret[i/2] = (uint8_t) (hexFromChar(secret_hex[i]) * 16 + hexFromChar(secret_hex[i+1]));
     }
 
 	// Create an otpauth:// URI and display a QR code that's compatible

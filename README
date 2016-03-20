@@ -1,0 +1,13 @@
+#Zexuan Wang, 998851773, zexuan.wang@mail.utoronto.ca
+#Yiming Kang, 998676730, yiming.kang@mail.utoronto.ca
+
+In this lab, we implemented HOTP (HMAC-based One Time Password) and TOTP (Time-based One Time Password) as described in RFC4226 and RFC6238 respectively.
+
+
+generateQRcode.c
+================
+This program displays two QR codes (one for HOTP, one for TOTP) based on the input Account name, issuer name and secret. If secret is less than 20 bytes, it is padded with 0s at the beginning. The account name and issuer name are urlEncoded so that special characters like spaces are escaped. The secret is encoded using base32 string. The format for HOTP is: otpauth://hotp/ACCOUNTNAME?issuer=ISSUER&secret=SECRET&counter=1 and the format for TOTP is: otpauth://totp/ACCOUNTNAME?issuer=ISSUER&secret=SECRET&period=30. Note that the counter is hard-coded to be 1 for HOTP and period is hard-coded to be 30 for TOTP.
+
+validateQRcode.c
+================
+This program takes three arguments, a hex-based secret, a HOTP code (generated using method described in RFC4226) and a TOTP code (generated using method described in RFC6238). It first converts the hex-based secret string into a binary value and apply the HMAC algorithm using SHA1 algorithm twice with inner padding = 0x3636... and outer padding = 0x5c5c... and then truncate to six-digit decimal value as described in RFC4226 (i.e Truncate(HMAC-SHA-1(secret, msg))). The message for HOTP is a hard-coded counter of 1 and the message for TOTP is the current_unix_time_in_seconds/30.Both function returns 1 if it matches the input HOTP/TOTP code and 0 if it does not.
